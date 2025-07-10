@@ -6,6 +6,70 @@ A Model Context Protocol for QUADS
 
 This is a Model Context Protocol (MCP) server that exposes tools, resources, and prompts for use with LLM applications like Claude. MCP servers let you extend AI applications with custom functionality, data sources, and templated interactions.
 
+## Installation
+
+### Option 1: Install from PyPI (Recommended)
+
+```bash
+# Install the latest version from PyPI
+pip install quads-mcp
+
+# Or using uvx for isolated installation
+uvx install quads-mcp
+
+# Run the server
+quads-mcp
+
+```
+
+### Option 2: Run directly via uvx
+
+```bash
+# Run the server
+uvx quads-mcp
+
+#### Claude Desktop Configuration (PyPI Installation)
+
+```json
+{
+  "mcpServers": {
+    "quads-mcp": {
+      "command": "quads-mcp",
+      "env": {
+        "MCP_QUADS__BASE_URL": "https://your-quads-server.com/api/v3",
+        "MCP_QUADS__USERNAME": "your-username",
+        "MCP_QUADS__PASSWORD": "your-password",
+        "MCP_QUADS__VERIFY_SSL": "false"
+      }
+    }
+  }
+}
+```
+```
+
+#### Claude Desktop Configuration (via uvx)
+
+```json
+{
+  "mcpServers": {
+    "quads-mcp": {
+      "command": "uvx",
+      "args": [
+        "--from", "quads-mcp", "quads-mcp"
+      ],
+      "env": {
+        "MCP_QUADS__BASE_URL": "https://your-quads-server.com/api/v3",
+        "MCP_QUADS__USERNAME": "your-username",
+        "MCP_QUADS__PASSWORD": "your-password",
+        "MCP_QUADS__VERIFY_SSL": "false"
+      }
+    }
+  }
+}
+```
+
+### Option 2: Install from Source
+
 ## Quick Start
 
 ### Option 1: Run with uvx (Easiest)
@@ -29,17 +93,22 @@ uvx --from . python -m quads_mcp.server
 # Set up the environment
 make setup
 
-# Activate the virtual environment
-source .venv/bin/activate  # On Unix/MacOS
-# or
-.venv\Scripts\activate     # On Windows
+# Check virtual environment status
+make status
 
-# Run the server in development mode with the MCP Inspector
+# Run the server (automatically uses virtual environment)
+make run
+
+# Run in development mode with MCP Inspector
 make dev
 
 # Install the server in Claude Desktop
 make install
 ```
+
+**Note**: You don't need to manually activate the virtual environment when using `make` commands - they automatically use the `.venv` environment!
+
+If you encounter import errors, run `make reinstall` to refresh the package installation.
 
 ### Option 3: Manual Setup
 
@@ -315,22 +384,50 @@ def my_custom_prompt(param: str) -> str:
 
 The server supports configuration via:
 
-1. **Environment Variables**: Prefix with `MCP_` (e.g., `MCP_API_KEY=xyz123`)
-   - Nested config: Use double underscores (`MCP_DATABASE__HOST=localhost`)
+1. **Environment Variables**: Prefix with `MCP_` (e.g., `MCP_QUADS__BASE_URL=https://quads.example.com`)
+   - Nested config: Use double underscores (`MCP_QUADS__USERNAME=myuser`)
 
 2. **Config File**: Specify via `MCP_CONFIG_FILE` environment variable
 
-Example config:
+3. **.env File**: Place a `.env` file in the project directory
+
+### QUADS Configuration
+
+```bash
+# Required: QUADS API URL
+MCP_QUADS__BASE_URL=https://your-quads-server.com/api/v3
+
+# Authentication (use either username/password OR token)
+MCP_QUADS__USERNAME=your-username
+MCP_QUADS__PASSWORD=your-password
+# OR
+MCP_QUADS__AUTH_TOKEN=your-auth-token
+
+# Optional settings
+MCP_QUADS__TIMEOUT=30
+MCP_QUADS__VERIFY_SSL=true  # Set to false for self-signed certificates
+```
+
+### SSL Certificates
+
+For QUADS servers with self-signed certificates, set:
+
+```bash
+MCP_QUADS__VERIFY_SSL=false
+```
+
+⚠️ **Security Note**: Only disable SSL verification for trusted internal servers. See [SSL_CONFIGURATION.md](SSL_CONFIGURATION.md) for details.
+
+### JSON Configuration Example
 
 ```json
 {
-  "api": {
-    "key": "xyz123",
-    "url": "https://api.example.com"
-  },
-  "database": {
-    "host": "localhost",
-    "port": 5432
+  "quads": {
+    "base_url": "https://quads.example.com/api/v3",
+    "username": "your-username",
+    "password": "your-password",
+    "timeout": 30,
+    "verify_ssl": false
   }
 }
 ```

@@ -3,18 +3,68 @@ QUADS MCP tools implementation.
 This file contains tool implementations for the QUADS API operations.
 """
 
-from .. import server
-from ..server import mcp, Context
-import asyncio
-import json
-from typing import Dict, Any, Optional, List
-from datetime import datetime
+from typing import Dict, Any, Optional
+import httpx
+
+# Import these at the end to avoid circular imports  
+from ..server import Context, mcp
+from ..auth import get_auth_manager
+
+
+async def make_quads_request(method: str, endpoint: str, ctx: Context, **kwargs) -> Dict[str, Any]:
+    """
+    Helper function to make authenticated requests to QUADS API.
+    
+    Args:
+        method: HTTP method (GET, POST, etc.)
+        endpoint: API endpoint (e.g., '/clouds/' or 'clouds/')
+        ctx: Context for logging
+        **kwargs: Additional arguments for the request
+        
+    Returns:
+        JSON response as dictionary
+    """
+    auth_manager = get_auth_manager()
+    
+    if not auth_manager:
+        error_msg = "Authentication manager not initialized"
+        ctx.error(error_msg)
+        return {"error": error_msg}
+    
+    if not auth_manager.has_credentials:
+        error_msg = "No QUADS credentials configured. Please set MCP_QUADS__USERNAME/PASSWORD or MCP_QUADS__AUTH_TOKEN"
+        ctx.error(error_msg)
+        return {"error": error_msg}
+    
+    try:
+        # Ensure endpoint starts with /
+        if not endpoint.startswith('/'):
+            endpoint = '/' + endpoint
+        
+        ctx.debug(f"Making {method} request to QUADS: {endpoint}")
+        
+        response = await auth_manager.make_authenticated_request(method, endpoint, **kwargs)
+        response.raise_for_status()
+        
+        return response.json()
+        
+    except httpx.HTTPStatusError as e:
+        error_msg = f"QUADS API error {e.response.status_code}: {e.response.reason_phrase}"
+        ctx.error(error_msg)
+        return {"error": error_msg, "status_code": e.response.status_code}
+    except Exception as e:
+        error_msg = f"QUADS API request failed: {str(e)}"
+        ctx.error(error_msg)
+        return {"error": error_msg}
 
 
 @mcp.tool()
 async def quads_login(username: str, password: str, ctx: Context) -> Dict[str, Any]:
     """
-    Login to QUADS API and get authentication token.
+    Manually login to QUADS API and get authentication token.
+    
+    Note: Authentication is normally handled automatically using credentials 
+    from .env file. This tool is for manual login if needed.
     
     Args:
         username: Username for authentication
@@ -24,32 +74,36 @@ async def quads_login(username: str, password: str, ctx: Context) -> Dict[str, A
     Returns:
         Authentication token and status
     """
-    import httpx
+    auth_manager = get_auth_manager()
+    
+    if not auth_manager:
+        error_msg = "Authentication manager not initialized"
+        ctx.error(error_msg)
+        return {"error": error_msg}
     
     try:
-        # Get the QUADS API base URL from config
-        app_ctx = mcp.get_request_context().lifespan_context
-        config = app_ctx.config
-        base_url = config.get('quads', {}).get('base_url', 'https://quads.example.com/api/v3')
+        # Create a temporary auth manager for manual login
+        from ..auth import QuadsAuthManager
         
-        ctx.info(f"Logging in to QUADS API at {base_url}")
+        temp_auth = QuadsAuthManager(
+            base_url=auth_manager.base_url,
+            username=username,
+            password=password,
+            timeout=auth_manager.timeout
+        )
         
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{base_url}/login/",
-                auth=(username, password),
-                timeout=30.0
-            )
-            response.raise_for_status()
+        ctx.info(f"Manually logging in to QUADS API")
+        
+        # Force login
+        await temp_auth._perform_login()
+        
+        ctx.info("Successfully logged in to QUADS")
+        return {
+            "auth_token": temp_auth._auth_token,
+            "message": "Login successful",
+            "note": "This token can be used in MCP_QUADS__AUTH_TOKEN environment variable"
+        }
             
-            result = response.json()
-            ctx.info("Successfully logged in to QUADS")
-            return result
-            
-    except httpx.HTTPStatusError as e:
-        error_msg = f"Login failed: HTTP {e.response.status_code}"
-        ctx.error(error_msg)
-        return {"error": error_msg, "status_code": e.response.status_code}
     except Exception as e:
         error_msg = f"Login error: {str(e)}"
         ctx.error(error_msg)
@@ -67,27 +121,15 @@ async def quads_get_clouds(ctx: Context) -> Dict[str, Any]:
     Returns:
         List of all clouds
     """
-    import httpx
+    ctx.info("Fetching all clouds from QUADS")
     
-    try:
-        app_ctx = mcp.get_request_context().lifespan_context
-        config = app_ctx.config
-        base_url = config.get('quads', {}).get('base_url', 'https://quads.example.com/api/v3')
-        
-        ctx.info("Fetching all clouds from QUADS")
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{base_url}/clouds/", timeout=30.0)
-            response.raise_for_status()
-            
-            result = response.json()
-            ctx.info(f"Retrieved {len(result) if isinstance(result, list) else 'unknown'} clouds")
-            return {"clouds": result}
-            
-    except Exception as e:
-        error_msg = f"Failed to get clouds: {str(e)}"
-        ctx.error(error_msg)
-        return {"error": error_msg}
+    result = await make_quads_request("GET", "/clouds/", ctx)
+    
+    if "error" not in result:
+        ctx.info(f"Retrieved {len(result) if isinstance(result, list) else 'unknown'} clouds")
+        return {"clouds": result}
+    
+    return result
 
 
 @mcp.tool()
@@ -101,27 +143,15 @@ async def quads_get_free_clouds(ctx: Context) -> Dict[str, Any]:
     Returns:
         List of free clouds
     """
-    import httpx
+    ctx.info("Fetching free clouds from QUADS")
     
-    try:
-        app_ctx = mcp.get_request_context().lifespan_context
-        config = app_ctx.config
-        base_url = config.get('quads', {}).get('base_url', 'https://quads.example.com/api/v3')
-        
-        ctx.info("Fetching free clouds from QUADS")
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{base_url}/clouds/free/", timeout=30.0)
-            response.raise_for_status()
-            
-            result = response.json()
-            ctx.info(f"Retrieved {len(result) if isinstance(result, list) else 'unknown'} free clouds")
-            return {"free_clouds": result}
-            
-    except Exception as e:
-        error_msg = f"Failed to get free clouds: {str(e)}"
-        ctx.error(error_msg)
-        return {"error": error_msg}
+    result = await make_quads_request("GET", "/clouds/free/", ctx)
+    
+    if "error" not in result:
+        ctx.info(f"Retrieved {len(result) if isinstance(result, list) else 'unknown'} free clouds")
+        return {"free_clouds": result}
+    
+    return result
 
 
 @mcp.tool()
@@ -141,38 +171,26 @@ async def quads_get_hosts(name: Optional[str] = None, model: Optional[str] = Non
     Returns:
         List of hosts matching the criteria
     """
-    import httpx
+    # Build query parameters
+    params = {}
+    if name:
+        params['name'] = name
+    if model:
+        params['model'] = model
+    if host_type:
+        params['host_type'] = host_type
+    if broken is not None:
+        params['broken'] = str(broken).lower()
     
-    try:
-        app_ctx = mcp.get_request_context().lifespan_context
-        config = app_ctx.config
-        base_url = config.get('quads', {}).get('base_url', 'https://quads.example.com/api/v3')
-        
-        # Build query parameters
-        params = {}
-        if name:
-            params['name'] = name
-        if model:
-            params['model'] = model
-        if host_type:
-            params['host_type'] = host_type
-        if broken is not None:
-            params['broken'] = str(broken).lower()
-        
-        ctx.info(f"Fetching hosts from QUADS with filters: {params}")
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{base_url}/hosts/", params=params, timeout=30.0)
-            response.raise_for_status()
-            
-            result = response.json()
-            ctx.info(f"Retrieved {len(result) if isinstance(result, list) else 'unknown'} hosts")
-            return {"hosts": result, "filters": params}
-            
-    except Exception as e:
-        error_msg = f"Failed to get hosts: {str(e)}"
-        ctx.error(error_msg)
-        return {"error": error_msg}
+    ctx.info(f"Fetching hosts from QUADS with filters: {params}")
+    
+    result = await make_quads_request("GET", "/hosts/", ctx, params=params)
+    
+    if "error" not in result:
+        ctx.info(f"Retrieved {len(result) if isinstance(result, list) else 'unknown'} hosts")
+        return {"hosts": result, "filters": params}
+    
+    return result
 
 
 @mcp.tool()
@@ -187,27 +205,15 @@ async def quads_get_host_details(hostname: str, ctx: Context) -> Dict[str, Any]:
     Returns:
         Detailed host information including hardware specs
     """
-    import httpx
+    ctx.info(f"Fetching details for host: {hostname}")
     
-    try:
-        app_ctx = mcp.get_request_context().lifespan_context
-        config = app_ctx.config
-        base_url = config.get('quads', {}).get('base_url', 'https://quads.example.com/api/v3')
-        
-        ctx.info(f"Fetching details for host: {hostname}")
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{base_url}/hosts/{hostname}/", timeout=30.0)
-            response.raise_for_status()
-            
-            result = response.json()
-            ctx.info(f"Retrieved details for host {hostname}")
-            return {"host": result}
-            
-    except Exception as e:
-        error_msg = f"Failed to get host details for {hostname}: {str(e)}"
-        ctx.error(error_msg)
-        return {"error": error_msg}
+    result = await make_quads_request("GET", f"/hosts/{hostname}/", ctx)
+    
+    if "error" not in result:
+        ctx.info(f"Retrieved details for host {hostname}")
+        return {"host": result}
+    
+    return result
 
 
 @mcp.tool()
@@ -225,35 +231,23 @@ async def quads_get_available_hosts(start: Optional[str] = None, end: Optional[s
     Returns:
         List of available hosts
     """
-    import httpx
+    params = {}
+    if start:
+        params['start'] = start
+    if end:
+        params['end'] = end
+    if cloud:
+        params['cloud'] = cloud
     
-    try:
-        app_ctx = mcp.get_request_context().lifespan_context
-        config = app_ctx.config
-        base_url = config.get('quads', {}).get('base_url', 'https://quads.example.com/api/v3')
-        
-        params = {}
-        if start:
-            params['start'] = start
-        if end:
-            params['end'] = end
-        if cloud:
-            params['cloud'] = cloud
-        
-        ctx.info(f"Fetching available hosts with parameters: {params}")
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{base_url}/available/", params=params, timeout=30.0)
-            response.raise_for_status()
-            
-            result = response.json()
-            ctx.info(f"Retrieved {len(result) if isinstance(result, list) else 'unknown'} available hosts")
-            return {"available_hosts": result, "parameters": params}
-            
-    except Exception as e:
-        error_msg = f"Failed to get available hosts: {str(e)}"
-        ctx.error(error_msg)
-        return {"error": error_msg}
+    ctx.info(f"Fetching available hosts with parameters: {params}")
+    
+    result = await make_quads_request("GET", "/available/", ctx, params=params)
+    
+    if "error" not in result:
+        ctx.info(f"Retrieved {len(result) if isinstance(result, list) else 'unknown'} available hosts")
+        return {"available_hosts": result, "parameters": params}
+    
+    return result
 
 
 @mcp.tool()
@@ -271,33 +265,21 @@ async def quads_check_host_availability(hostname: str, start: Optional[str] = No
     Returns:
         Host availability status
     """
-    import httpx
+    params = {}
+    if start:
+        params['start'] = start
+    if end:
+        params['end'] = end
     
-    try:
-        app_ctx = mcp.get_request_context().lifespan_context
-        config = app_ctx.config
-        base_url = config.get('quads', {}).get('base_url', 'https://quads.example.com/api/v3')
-        
-        params = {}
-        if start:
-            params['start'] = start
-        if end:
-            params['end'] = end
-        
-        ctx.info(f"Checking availability for host {hostname} with parameters: {params}")
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{base_url}/available/{hostname}/", params=params, timeout=30.0)
-            response.raise_for_status()
-            
-            result = response.json()
-            ctx.info(f"Checked availability for host {hostname}")
-            return {"hostname": hostname, "availability": result, "parameters": params}
-            
-    except Exception as e:
-        error_msg = f"Failed to check host availability for {hostname}: {str(e)}"
-        ctx.error(error_msg)
-        return {"error": error_msg}
+    ctx.info(f"Checking availability for host {hostname} with parameters: {params}")
+    
+    result = await make_quads_request("GET", f"/available/{hostname}/", ctx, params=params)
+    
+    if "error" not in result:
+        ctx.info(f"Checked availability for host {hostname}")
+        return {"hostname": hostname, "availability": result, "parameters": params}
+    
+    return result
 
 
 @mcp.tool()
@@ -311,27 +293,15 @@ async def quads_get_schedules(ctx: Context) -> Dict[str, Any]:
     Returns:
         List of all schedules
     """
-    import httpx
+    ctx.info("Fetching all schedules from QUADS")
     
-    try:
-        app_ctx = mcp.get_request_context().lifespan_context
-        config = app_ctx.config
-        base_url = config.get('quads', {}).get('base_url', 'https://quads.example.com/api/v3')
-        
-        ctx.info("Fetching all schedules from QUADS")
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{base_url}/schedules/", timeout=30.0)
-            response.raise_for_status()
-            
-            result = response.json()
-            ctx.info(f"Retrieved {len(result) if isinstance(result, list) else 'unknown'} schedules")
-            return {"schedules": result}
-            
-    except Exception as e:
-        error_msg = f"Failed to get schedules: {str(e)}"
-        ctx.error(error_msg)
-        return {"error": error_msg}
+    result = await make_quads_request("GET", "/schedules/", ctx)
+    
+    if "error" not in result:
+        ctx.info(f"Retrieved {len(result) if isinstance(result, list) else 'unknown'} schedules")
+        return {"schedules": result}
+    
+    return result
 
 
 @mcp.tool()
@@ -349,35 +319,23 @@ async def quads_get_current_schedules(date: Optional[str] = None, host: Optional
     Returns:
         List of current schedules
     """
-    import httpx
+    params = {}
+    if date:
+        params['date'] = date
+    if host:
+        params['host'] = host
+    if cloud:
+        params['cloud'] = cloud
     
-    try:
-        app_ctx = mcp.get_request_context().lifespan_context
-        config = app_ctx.config
-        base_url = config.get('quads', {}).get('base_url', 'https://quads.example.com/api/v3')
-        
-        params = {}
-        if date:
-            params['date'] = date
-        if host:
-            params['host'] = host
-        if cloud:
-            params['cloud'] = cloud
-        
-        ctx.info(f"Fetching current schedules with parameters: {params}")
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{base_url}/schedules/current/", params=params, timeout=30.0)
-            response.raise_for_status()
-            
-            result = response.json()
-            ctx.info(f"Retrieved current schedules")
-            return {"current_schedules": result, "parameters": params}
-            
-    except Exception as e:
-        error_msg = f"Failed to get current schedules: {str(e)}"
-        ctx.error(error_msg)
-        return {"error": error_msg}
+    ctx.info(f"Fetching current schedules with parameters: {params}")
+    
+    result = await make_quads_request("GET", "/schedules/current/", ctx, params=params)
+    
+    if "error" not in result:
+        ctx.info(f"Retrieved current schedules")
+        return {"current_schedules": result, "parameters": params}
+    
+    return result
 
 
 @mcp.tool()
@@ -391,27 +349,15 @@ async def quads_get_assignments(ctx: Context) -> Dict[str, Any]:
     Returns:
         List of all assignments
     """
-    import httpx
+    ctx.info("Fetching all assignments from QUADS")
     
-    try:
-        app_ctx = mcp.get_request_context().lifespan_context
-        config = app_ctx.config
-        base_url = config.get('quads', {}).get('base_url', 'https://quads.example.com/api/v3')
-        
-        ctx.info("Fetching all assignments from QUADS")
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{base_url}/assignments/", timeout=30.0)
-            response.raise_for_status()
-            
-            result = response.json()
-            ctx.info(f"Retrieved assignments")
-            return {"assignments": result}
-            
-    except Exception as e:
-        error_msg = f"Failed to get assignments: {str(e)}"
-        ctx.error(error_msg)
-        return {"error": error_msg}
+    result = await make_quads_request("GET", "/assignments/", ctx)
+    
+    if "error" not in result:
+        ctx.info(f"Retrieved assignments")
+        return {"assignments": result}
+    
+    return result
 
 
 @mcp.tool()
@@ -426,32 +372,20 @@ async def quads_get_active_assignments(cloud_name: Optional[str] = None, ctx: Co
     Returns:
         List of active assignments
     """
-    import httpx
+    if cloud_name:
+        endpoint = f"/assignments/active/{cloud_name}/"
+        ctx.info(f"Fetching active assignments for cloud: {cloud_name}")
+    else:
+        endpoint = "/assignments/active/"
+        ctx.info("Fetching all active assignments")
     
-    try:
-        app_ctx = mcp.get_request_context().lifespan_context
-        config = app_ctx.config
-        base_url = config.get('quads', {}).get('base_url', 'https://quads.example.com/api/v3')
-        
-        if cloud_name:
-            url = f"{base_url}/assignments/active/{cloud_name}/"
-            ctx.info(f"Fetching active assignments for cloud: {cloud_name}")
-        else:
-            url = f"{base_url}/assignments/active/"
-            ctx.info("Fetching all active assignments")
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, timeout=30.0)
-            response.raise_for_status()
-            
-            result = response.json()
-            ctx.info(f"Retrieved active assignments")
-            return {"active_assignments": result, "cloud_filter": cloud_name}
-            
-    except Exception as e:
-        error_msg = f"Failed to get active assignments: {str(e)}"
-        ctx.error(error_msg)
-        return {"error": error_msg}
+    result = await make_quads_request("GET", endpoint, ctx)
+    
+    if "error" not in result:
+        ctx.info(f"Retrieved active assignments")
+        return {"active_assignments": result, "cloud_filter": cloud_name}
+    
+    return result
 
 
 @mcp.tool()
@@ -466,31 +400,19 @@ async def quads_get_moves(date: Optional[str] = None, ctx: Context = None) -> Di
     Returns:
         List of host moves
     """
-    import httpx
+    params = {}
+    if date:
+        params['date'] = date
     
-    try:
-        app_ctx = mcp.get_request_context().lifespan_context
-        config = app_ctx.config
-        base_url = config.get('quads', {}).get('base_url', 'https://quads.example.com/api/v3')
-        
-        params = {}
-        if date:
-            params['date'] = date
-        
-        ctx.info(f"Fetching moves with parameters: {params}")
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{base_url}/moves/", params=params, timeout=30.0)
-            response.raise_for_status()
-            
-            result = response.json()
-            ctx.info(f"Retrieved {len(result) if isinstance(result, list) else 'unknown'} moves")
-            return {"moves": result, "parameters": params}
-            
-    except Exception as e:
-        error_msg = f"Failed to get moves: {str(e)}"
-        ctx.error(error_msg)
-        return {"error": error_msg}
+    ctx.info(f"Fetching moves with parameters: {params}")
+    
+    result = await make_quads_request("GET", "/moves/", ctx, params=params)
+    
+    if "error" not in result:
+        ctx.info(f"Retrieved {len(result) if isinstance(result, list) else 'unknown'} moves")
+        return {"moves": result, "parameters": params}
+    
+    return result
 
 
 @mcp.tool()
@@ -504,24 +426,12 @@ async def quads_get_version(ctx: Context) -> Dict[str, Any]:
     Returns:
         QUADS version information
     """
-    import httpx
+    ctx.info("Fetching QUADS version")
     
-    try:
-        app_ctx = mcp.get_request_context().lifespan_context
-        config = app_ctx.config
-        base_url = config.get('quads', {}).get('base_url', 'https://quads.example.com/api/v3')
-        
-        ctx.info("Fetching QUADS version")
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{base_url}/version/", timeout=30.0)
-            response.raise_for_status()
-            
-            result = response.json()
-            ctx.info("Retrieved QUADS version")
-            return {"version": result}
-            
-    except Exception as e:
-        error_msg = f"Failed to get version: {str(e)}"
-        ctx.error(error_msg)
-        return {"error": error_msg}
+    result = await make_quads_request("GET", "/version/", ctx)
+    
+    if "error" not in result:
+        ctx.info("Retrieved QUADS version")
+        return {"version": result}
+    
+    return result

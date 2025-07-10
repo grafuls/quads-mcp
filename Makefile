@@ -1,7 +1,43 @@
-.PHONY: setup run dev install deploy test clean format type-check container-build container-run compose-up compose-down
+.PHONY: setup run dev install deploy test clean format type-check check-venv status reinstall container-build container-run compose-up compose-down
 
 # Set the Python version from cookiecutter or default to 3.10
 PYTHON_VERSION := 3.10
+
+# Virtual environment paths
+VENV_DIR := .venv
+VENV_BIN := $(VENV_DIR)/bin
+PYTHON := $(VENV_BIN)/python
+PIP := $(VENV_BIN)/pip
+
+# Check if we're in a virtual environment, if not use the local one
+ifeq ($(VIRTUAL_ENV),)
+    PYTHON_CMD := $(PYTHON)
+    PIP_CMD := $(PIP)
+else
+    PYTHON_CMD := python
+    PIP_CMD := pip
+endif
+
+# Check if virtual environment exists
+check-venv:
+	@if [ ! -d "$(VENV_DIR)" ]; then \
+		echo "❌ Virtual environment not found. Run 'make setup' first."; \
+		exit 1; \
+	fi
+
+# Show virtual environment status
+status:
+	@echo "Virtual Environment Status:"
+	@if [ -d "$(VENV_DIR)" ]; then \
+		echo "✅ Virtual environment exists at $(VENV_DIR)"; \
+		echo "📍 Python: $(PYTHON_CMD)"; \
+		if [ -f "$(PYTHON)" ]; then \
+			echo "🐍 Version: $$($(PYTHON) --version)"; \
+		fi; \
+	else \
+		echo "❌ Virtual environment not found"; \
+		echo "💡 Run 'make setup' to create it"; \
+	fi
 
 # Setup with uv
 setup:
@@ -9,34 +45,39 @@ setup:
 	@which uv >/dev/null || pip install uv
 	# Create a virtual environment
 	uv venv
-	# Install dependencies with development extras
+	# Install dependencies with development extras using uv
 	uv pip install -e ".[dev]"
-	@echo "✅ Environment setup complete. Activate it with 'source .venv/bin/activate' (Unix/macOS) or '.venv\\Scripts\activate' (Windows)"
+	@echo "✅ Environment setup complete. You can now run 'make run' to start the server."
+
+# Reinstall package in development mode (useful after code changes)
+reinstall: check-venv
+	uv pip install -e ".[dev]"
+	@echo "✅ Package reinstalled in development mode."
 
 # Run the server directly
-run:
-	python -m quads_mcp.server
+run: check-venv
+	$(PYTHON_CMD) -m quads_mcp.server
 
 # Run in development mode with MCP inspector
-dev:
-	mcp dev quads_mcp.server
+dev: check-venv
+	$(VENV_BIN)/mcp dev quads_mcp.server
 
 # Install in Claude Desktop
-install:
-	mcp install quads_mcp.server
+install: check-venv
+	$(VENV_BIN)/mcp install quads_mcp.server
 
 # Run tests
-test:
-	pytest
+test: check-venv
+	$(VENV_BIN)/pytest
 
 # Format code with black and isort
-format:
-	black quads_mcp
-	isort quads_mcp
+format: check-venv
+	$(VENV_BIN)/black quads_mcp
+	$(VENV_BIN)/isort quads_mcp
 
 # Check types with mypy
-type-check:
-	mypy quads_mcp
+type-check: check-venv
+	$(VENV_BIN)/mypy quads_mcp
 
 # Clean up build artifacts
 clean:

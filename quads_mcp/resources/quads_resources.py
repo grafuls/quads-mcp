@@ -3,9 +3,11 @@ QUADS MCP resources implementation.
 This file contains resource implementations for accessing QUADS data.
 """
 
-from ..server import mcp
 import json
 import datetime
+
+# Import these at the end to avoid circular imports
+from ..server import mcp
 
 
 @mcp.resource("quads://clouds")

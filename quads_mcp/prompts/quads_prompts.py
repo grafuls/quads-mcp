@@ -3,8 +3,8 @@ QUADS MCP prompts implementation.
 This file contains prompt templates for common QUADS operations.
 """
 
+# Import these at the end to avoid circular imports
 from ..server import mcp
-from mcp.server.fastmcp.prompts import base
 
 
 @mcp.prompt()
@@ -106,7 +106,7 @@ def quads_capacity_planning(requirements: str, timeframe: str = "next 30 days") 
 
 
 @mcp.prompt()
-def quads_troubleshooting(issue_description: str) -> list[base.Message]:
+def quads_troubleshooting(issue_description: str) -> str:
     """
     Prompt for troubleshooting QUADS issues.
     
@@ -114,45 +114,46 @@ def quads_troubleshooting(issue_description: str) -> list[base.Message]:
         issue_description: Description of the issue to troubleshoot
         
     Returns:
-        A list of prompt messages for troubleshooting
+        A formatted prompt for troubleshooting
     """
-    return [
-        base.UserMessage("I'm having an issue with the QUADS system that needs troubleshooting."),
-        base.UserMessage(f"Issue Description: {issue_description}"),
-        base.AssistantMessage("I'll help you troubleshoot this QUADS issue. Let me gather some information first."),
-        base.UserMessage("""
-        Please help me troubleshoot this systematically by:
+    return f"""
+    # QUADS Troubleshooting
 
-        1. **Gathering System Information**:
-           - Check QUADS version and system status
-           - Verify connectivity to the QUADS API
-           - Review current system configuration
+    I'm having an issue with the QUADS system that needs troubleshooting.
 
-        2. **Analyzing the Problem**:
-           - Examine related hosts, clouds, and assignments
-           - Check schedules and availability
-           - Look for any conflicts or inconsistencies
+    **Issue Description**: {issue_description}
 
-        3. **Identifying Root Cause**:
-           - Correlate symptoms with system state
-           - Check for common issues (network, permissions, scheduling conflicts)
-           - Analyze timing and dependencies
+    Please help me troubleshoot this systematically by:
 
-        4. **Providing Solutions**:
-           - Suggest specific remediation steps
-           - Recommend preventive measures
-           - Provide alternative approaches if needed
+    1. **Gathering System Information**:
+       - Check QUADS version and system status
+       - Verify connectivity to the QUADS API
+       - Review current system configuration
 
-        Available diagnostic tools:
-        - `quads_get_version()` - Check system version
-        - `quads_get_hosts()` - Check host status
-        - `quads_get_assignments()` - Review assignments
-        - `quads_get_schedules()` - Check scheduling
-        - `quads_get_moves()` - Check transitions
+    2. **Analyzing the Problem**:
+       - Examine related hosts, clouds, and assignments
+       - Check schedules and availability
+       - Look for any conflicts or inconsistencies
 
-        Please start by gathering relevant system information and then provide your analysis.
-        """)
-    ]
+    3. **Identifying Root Cause**:
+       - Correlate symptoms with system state
+       - Check for common issues (network, permissions, scheduling conflicts)
+       - Analyze timing and dependencies
+
+    4. **Providing Solutions**:
+       - Suggest specific remediation steps
+       - Recommend preventive measures
+       - Provide alternative approaches if needed
+
+    Available diagnostic tools:
+    - `quads_get_version()` - Check system version
+    - `quads_get_hosts()` - Check host status
+    - `quads_get_assignments()` - Review assignments
+    - `quads_get_schedules()` - Check scheduling
+    - `quads_get_moves()` - Check transitions
+
+    Please start by gathering relevant system information and then provide your analysis.
+    """
 
 
 @mcp.prompt()
@@ -317,51 +318,51 @@ def quads_reporting(report_type: str, scope: str = "all") -> str:
 
 
 @mcp.prompt()
-def quads_health_check() -> list[base.Message]:
+def quads_health_check() -> str:
     """
     Prompt for performing QUADS system health checks.
     
     Returns:
-        A list of prompt messages for health checking
+        A formatted prompt for health checking
     """
-    return [
-        base.UserMessage("I need to perform a comprehensive health check of the QUADS system."),
-        base.AssistantMessage("I'll help you perform a thorough health check of the QUADS system. Let me check various system components."),
-        base.UserMessage("""
-        Please perform a comprehensive health check by examining:
+    return """
+    # QUADS System Health Check
 
-        1. **System Connectivity**:
-           - Verify API connectivity and response times
-           - Check system version and basic functionality
-           - Test authentication if configured
+    I need to perform a comprehensive health check of the QUADS system.
 
-        2. **Resource Status**:
-           - Check host status (broken, retired, build issues)
-           - Verify cloud configurations
-           - Review assignment states
+    Please perform a comprehensive health check by examining:
 
-        3. **Scheduling Integrity**:
-           - Check for scheduling conflicts
-           - Verify assignment consistency
-           - Look for orphaned or problematic schedules
+    1. **System Connectivity**:
+       - Verify API connectivity and response times
+       - Check system version and basic functionality
+       - Test authentication if configured
 
-        4. **Capacity and Utilization**:
-           - Review resource utilization
-           - Check available capacity
-           - Identify underutilized resources
+    2. **Resource Status**:
+       - Check host status (broken, retired, build issues)
+       - Verify cloud configurations
+       - Review assignment states
 
-        5. **System Health Metrics**:
-           - Count of healthy vs. problematic hosts
-           - Assignment success rates
-           - Resource availability trends
+    3. **Scheduling Integrity**:
+       - Check for scheduling conflicts
+       - Verify assignment consistency
+       - Look for orphaned or problematic schedules
 
-        Available diagnostic tools:
-        - `quads_get_version()` - System version check
-        - `quads_get_hosts()` - Host health status
-        - `quads_get_clouds()` - Cloud configurations
-        - `quads_get_assignments()` - Assignment states
-        - `quads_get_schedules()` - Schedule integrity
+    4. **Capacity and Utilization**:
+       - Review resource utilization
+       - Check available capacity
+       - Identify underutilized resources
 
-        Please provide a detailed health report with recommendations for any issues found.
-        """)
-    ]
+    5. **System Health Metrics**:
+       - Count of healthy vs. problematic hosts
+       - Assignment success rates
+       - Resource availability trends
+
+    Available diagnostic tools:
+    - `quads_get_version()` - System version check
+    - `quads_get_hosts()` - Host health status
+    - `quads_get_clouds()` - Cloud configurations
+    - `quads_get_assignments()` - Assignment states
+    - `quads_get_schedules()` - Schedule integrity
+
+    Please provide a detailed health report with recommendations for any issues found.
+    """
