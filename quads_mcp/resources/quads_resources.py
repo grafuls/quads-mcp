@@ -3,8 +3,8 @@ QUADS MCP resources implementation.
 This file contains resource implementations for accessing QUADS data.
 """
 
-import json
 import datetime
+import json
 
 # Import these at the end to avoid circular imports
 from ..server import mcp
@@ -14,7 +14,7 @@ from ..server import mcp
 def quads_clouds_resource() -> str:
     """
     Resource for accessing QUADS cloud information.
-    
+
     Returns:
         Cloud data formatted as markdown
     """
@@ -55,7 +55,7 @@ def quads_clouds_resource() -> str:
 def quads_hosts_resource() -> str:
     """
     Resource for accessing QUADS host information.
-    
+
     Returns:
         Host data formatted as markdown
     """
@@ -105,7 +105,7 @@ def quads_hosts_resource() -> str:
 def quads_schedules_resource() -> str:
     """
     Resource for accessing QUADS scheduling information.
-    
+
     Returns:
         Schedule data formatted as markdown
     """
@@ -151,7 +151,7 @@ def quads_schedules_resource() -> str:
 def quads_assignments_resource() -> str:
     """
     Resource for accessing QUADS assignment information.
-    
+
     Returns:
         Assignment data formatted as markdown
     """
@@ -198,7 +198,7 @@ def quads_assignments_resource() -> str:
 def quads_availability_resource() -> str:
     """
     Resource for accessing QUADS host availability information.
-    
+
     Returns:
         Availability data formatted as markdown
     """
@@ -246,7 +246,7 @@ def quads_availability_resource() -> str:
 def quads_moves_resource() -> str:
     """
     Resource for accessing QUADS host transition information.
-    
+
     Returns:
         Move data formatted as markdown
     """
@@ -289,17 +289,17 @@ def quads_moves_resource() -> str:
 def quads_config_resource(section: str) -> str:
     """
     Resource for accessing QUADS configuration information.
-    
+
     Args:
         section: Configuration section to access
-        
+
     Returns:
         Configuration data formatted as markdown
     """
     # Access the app context
     ctx = mcp.get_request_context()
     config = ctx.lifespan_context.config
-    
+
     # Check if the section exists
     if section in config:
         return f"""
@@ -346,10 +346,10 @@ def quads_config_resource(section: str) -> str:
 def quads_hardware_resource(hostname: str) -> str:
     """
     Resource template for accessing hardware information for a specific host.
-    
+
     Args:
         hostname: The hostname to get hardware information for
-        
+
     Returns:
         Hardware information formatted as markdown
     """

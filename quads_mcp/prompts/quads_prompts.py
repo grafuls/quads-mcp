@@ -11,10 +11,10 @@ from ..server import mcp
 def quads_host_search(search_criteria: str) -> str:
     """
     Prompt for searching and analyzing QUADS hosts.
-    
+
     Args:
         search_criteria: The criteria to search for (model, name, status, etc.)
-        
+
     Returns:
         A formatted prompt for host search and analysis
     """
@@ -55,11 +55,11 @@ def quads_host_search(search_criteria: str) -> str:
 def quads_capacity_planning(requirements: str, timeframe: str = "next 30 days") -> str:
     """
     Prompt for QUADS capacity planning and resource allocation.
-    
+
     Args:
         requirements: The capacity requirements to plan for
         timeframe: The timeframe for capacity planning
-        
+
     Returns:
         A formatted prompt for capacity planning
     """
@@ -109,10 +109,10 @@ def quads_capacity_planning(requirements: str, timeframe: str = "next 30 days") 
 def quads_troubleshooting(issue_description: str) -> str:
     """
     Prompt for troubleshooting QUADS issues.
-    
+
     Args:
         issue_description: Description of the issue to troubleshoot
-        
+
     Returns:
         A formatted prompt for troubleshooting
     """
@@ -160,11 +160,11 @@ def quads_troubleshooting(issue_description: str) -> str:
 def quads_assignment_planning(cloud_name: str, requirements: str) -> str:
     """
     Prompt for planning QUADS cloud assignments.
-    
+
     Args:
         cloud_name: Name of the cloud to plan assignment for
         requirements: Requirements for the assignment
-        
+
     Returns:
         A formatted prompt for assignment planning
     """
@@ -214,11 +214,11 @@ def quads_assignment_planning(cloud_name: str, requirements: str) -> str:
 def quads_maintenance_planning(maintenance_type: str, affected_resources: str) -> str:
     """
     Prompt for planning QUADS maintenance operations.
-    
+
     Args:
         maintenance_type: Type of maintenance to plan
         affected_resources: Resources that will be affected
-        
+
     Returns:
         A formatted prompt for maintenance planning
     """
@@ -267,11 +267,11 @@ def quads_maintenance_planning(maintenance_type: str, affected_resources: str) -
 def quads_reporting(report_type: str, scope: str = "all") -> str:
     """
     Prompt for generating QUADS reports.
-    
+
     Args:
         report_type: Type of report to generate
         scope: Scope of the report (all, specific cloud, date range, etc.)
-        
+
     Returns:
         A formatted prompt for report generation
     """
@@ -321,7 +321,7 @@ def quads_reporting(report_type: str, scope: str = "all") -> str:
 def quads_health_check() -> str:
     """
     Prompt for performing QUADS system health checks.
-    
+
     Returns:
         A formatted prompt for health checking
     """
