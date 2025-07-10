@@ -20,6 +20,15 @@ Use this configuration when your QUADS server uses self-signed SSL certificates.
 - ✅ Works with self-signed certificates
 - ⚠️ Less secure - use only for trusted internal servers
 
+### `self_signed_ssl_uvx.json` 
+Use this configuration when you don't want to install the quads-mcp server and want to just run it via uvx.
+
+**Features:**
+- ⚠️ SSL certificate verification disabled
+- ✅ Works with self-signed certificates
+- ⚠️ Less secure - use only for trusted internal servers
+- ✅ No installation, only execution via uvx
+
 ## How to Use
 
 1. **Choose the appropriate configuration** based on your QUADS server's SSL setup

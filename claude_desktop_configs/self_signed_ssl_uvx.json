@@ -1,9 +1,10 @@
 {
   "mcpServers": {
     "quads-mcp": {
-      "command": "/path/to/quads-mcp/.venv/bin/python",
-      "args": ["-m", "quads_mcp.server"],
-      "cwd": "/path/to/quads-mcp/",
+      "command": "uvx",
+      "args": [
+          "--from", "quads-mcp", "quads-mcp"
+      ],
       "env": {
         "MCP_QUADS__BASE_URL": "https://your-quads-server.com/api/v3",
         "MCP_QUADS__USERNAME": "your-username", 
