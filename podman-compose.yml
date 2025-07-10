@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  quads-mcp:
+    build: .
+    container_name: quads-mcp
+    restart: unless-stopped
+    environment:
+      # Configure these environment variables
+      # MCP_QUADS__BASE_URL: https://quads.example.com/api/v3
+      # MCP_QUADS__AUTH_TOKEN: your-auth-token-here
+      # MCP_QUADS__TIMEOUT: 30
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8000:8000"
+    # Mount configuration files if needed
+    volumes:
+      - ./config:/app/config:ro
+      # Uncomment to use .env file
+      # - ./.env:/app/.env:ro
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "from quads_mcp.server import mcp; print('Server OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Optional: Add a development service with volume mounts for live development
+  quads-mcp-dev:
+    build: .
+    container_name: quads-mcp-dev
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MCP_DEBUG=true
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./quads_mcp:/app/quads_mcp:ro
+      - ./.env:/app/.env:ro
+    profiles:
+      - dev
+    command: ["python", "-m", "quads_mcp.server"]

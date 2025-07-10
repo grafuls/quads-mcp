@@ -8,7 +8,22 @@ This is a Model Context Protocol (MCP) server that exposes tools, resources, and
 
 ## Quick Start
 
-### Setup with uv (Recommended)
+### Option 1: Run with uvx (Easiest)
+
+The fastest way to run the server without any setup:
+
+```bash
+# Install uv if you don't have it
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Run the server directly (from project directory)
+uvx --from . quads-mcp
+
+# Or run the module
+uvx --from . python -m quads_mcp.server
+```
+
+### Option 2: Setup with uv (Recommended)
 
 ```bash
 # Set up the environment
@@ -26,7 +41,7 @@ make dev
 make install
 ```
 
-### Manual Setup
+### Option 3: Manual Setup
 
 ```bash
 # Install uv if you don't have it
@@ -50,21 +65,160 @@ mcp dev quads_mcp.server
 mcp install quads_mcp.server
 ```
 
-## Docker
+### uvx Configuration
 
-Build and run using Docker:
+When running with uvx, you can configure the server using environment variables or .env files:
 
 ```bash
-# Build the Docker image
-make docker-build
+# Option 1: Environment variables
+MCP_QUADS__BASE_URL="https://your-quads-api.com/api/v3" \
+MCP_QUADS__AUTH_TOKEN="your-token" \
+uvx --from . quads-mcp
+
+# Option 2: .env file (recommended)
+cp .env.example .env
+# Edit .env with your configuration
+uvx --from . quads-mcp
+
+# Option 3: Development mode
+MCP_DEBUG=true uvx --from . quads-mcp
+```
+
+#### Installing as Global Tool
+
+```bash
+# Install globally with uvx
+uvx install .
+
+# Now run from anywhere
+quads-mcp
+
+# Uninstall when done
+uvx uninstall quads-mcp
+```
+
+## Containers
+
+This project uses Podman for containerization. Podman is a daemonless container engine that's compatible with OCI containers and provides better security than traditional container engines.
+
+### Quick Start with Podman
+
+```bash
+# Build the container image
+make container-build
 # or
-docker build -t quads-mcp .
+podman build -t quads-mcp .
 
 # Run the container
-make docker-run
+make container-run
 # or
-docker run -p 8000:8000 quads-mcp
+podman run -p 8000:8000 quads-mcp
 ```
+
+### Podman Compose (Recommended)
+
+For easier development and deployment, use Podman Compose:
+
+```bash
+# Run with Podman Compose
+make compose-up
+# or
+podman-compose up -d
+
+# View logs
+make compose-logs
+# or
+podman-compose logs -f
+
+# Stop the service
+make compose-down
+# or
+podman-compose down
+```
+
+### Development with Podman
+
+For development with live code reloading:
+
+```bash
+# Run development profile
+make compose-dev
+# or
+podman-compose --profile dev up -d quads-mcp-dev
+
+# The development container mounts your code for live updates
+```
+
+### Configuration with Podman
+
+#### Option 1: Environment Variables
+```bash
+podman run -p 8000:8000 \
+  -e MCP_QUADS__BASE_URL=https://your-quads-api.com/api/v3 \
+  -e MCP_QUADS__AUTH_TOKEN=your-token \
+  quads-mcp
+```
+
+#### Option 2: .env File
+```bash
+# Create .env file with your configuration
+cp .env.example .env
+# Edit .env with your values
+
+# Run with .env file
+podman run -p 8000:8000 \
+  -v $(pwd)/.env:/app/.env:ro \
+  quads-mcp
+```
+
+#### Option 3: Podman Compose with .env
+```bash
+# Edit podman-compose.yml to uncomment the .env volume mount
+# Then run:
+podman-compose up -d
+```
+
+### Production Builds
+
+#### Multi-stage Build (Recommended)
+
+For smaller, optimized production images:
+
+```bash
+# Build with multi-stage Containerfile
+make container-build-prod
+# or
+podman build -f Containerfile.multistage -t quads-mcp:production .
+
+# Run production image
+make container-run-prod
+# or
+podman run -p 8000:8000 quads-mcp:production
+```
+
+#### Ultra-Secure Build (Distroless)
+
+For maximum security with minimal attack surface:
+
+```bash
+# Build with distroless base image
+make container-build-distroless
+# or
+podman build -f Containerfile.distroless -t quads-mcp:distroless .
+
+# Run distroless image
+make container-run-distroless
+# or
+podman run -p 8000:8000 quads-mcp:distroless
+```
+
+### Security Features
+
+- **Alpine Linux Base**: Minimal, security-focused distribution
+- **Non-root User**: Runs as unprivileged `mcp` user (UID/GID 1001)
+- **Distroless Option**: Ultra-minimal base with no shell or package manager
+- **Security Updates**: Automatically includes latest security patches
+- **Minimal Attack Surface**: Only includes necessary dependencies
 
 ## Server Architecture
 

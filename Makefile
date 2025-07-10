@@ -1,4 +1,4 @@
-.PHONY: setup run dev install deploy test clean format type-check
+.PHONY: setup run dev install deploy test clean format type-check container-build container-run compose-up compose-down
 
 # Set the Python version from cookiecutter or default to 3.10
 PYTHON_VERSION := 3.10
@@ -46,10 +46,40 @@ clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 
-# Docker build
-docker-build:
-	docker build -t quads-mcp:latest .
+# Container build with Podman
+container-build:
+	podman build -t quads-mcp:latest .
 
-# Run with Docker
-docker-run:
-	docker run -p 8000:8000 quads-mcp:latest
+# Build production image with multi-stage Containerfile
+container-build-prod:
+	podman build -f Containerfile.multistage -t quads-mcp:production .
+
+# Build ultra-secure image with distroless base
+container-build-distroless:
+	podman build -f Containerfile.distroless -t quads-mcp:distroless .
+
+# Run with Podman
+container-run:
+	podman run -p 8000:8000 quads-mcp:latest
+
+# Run production image
+container-run-prod:
+	podman run -p 8000:8000 quads-mcp:production
+
+# Run distroless image
+container-run-distroless:
+	podman run -p 8000:8000 quads-mcp:distroless
+
+# Podman Compose commands
+compose-up:
+	podman-compose up -d
+
+compose-down:
+	podman-compose down
+
+compose-logs:
+	podman-compose logs -f
+
+# Development with Podman Compose
+compose-dev:
+	podman-compose --profile dev up -d quads-mcp-dev

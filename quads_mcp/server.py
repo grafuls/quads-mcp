@@ -67,6 +67,15 @@ from .prompts.quads_prompts import *
 # Make the server instance accessible to other modules
 server = mcp
 
+
+def main():
+    """
+    Main entry point for the QUADS MCP server.
+    This function is used by the console script and uvx.
+    """
+    mcp.run()
+
+
 if __name__ == "__main__":
     # When executed directly, run the server
-    mcp.run()
+    main()

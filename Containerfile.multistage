@@ -1,0 +1,71 @@
+# Multi-stage Containerfile for production optimization
+# Build stage
+FROM python:3.12-alpine as builder
+
+# Set working directory
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PIP_NO_CACHE_DIR=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Install build dependencies
+RUN apk update && apk add --no-cache \
+    gcc \
+    musl-dev \
+    linux-headers \
+    && rm -rf /var/cache/apk/*
+
+# Install uv for faster dependency management
+RUN pip install uv
+
+# Copy project files
+COPY pyproject.toml ./
+COPY README.md ./
+COPY quads_mcp/ ./quads_mcp/
+
+# Install dependencies to a virtual environment
+RUN uv venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN uv pip install -e .
+
+# Production stage
+FROM python:3.12-alpine as production
+
+# Set working directory
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Install security updates only
+RUN apk update && apk upgrade \
+    && rm -rf /var/cache/apk/*
+
+# Copy virtual environment from builder stage
+COPY --from=builder /opt/venv /opt/venv
+
+# Copy application code
+COPY quads_mcp/ ./quads_mcp/
+COPY pyproject.toml ./
+COPY README.md ./
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S mcp && \
+    adduser -u 1001 -S mcp -G mcp
+RUN chown -R mcp:mcp /app
+USER mcp
+
+# Expose port (if needed for HTTP serving)
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "from quads_mcp.server import mcp; print('Server OK')" || exit 1
+
+# Default command
+CMD ["python", "-m", "quads_mcp.server"]

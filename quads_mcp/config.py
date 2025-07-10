@@ -8,6 +8,12 @@ import json
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+try:
+    from dotenv import load_dotenv
+    DOTENV_AVAILABLE = True
+except ImportError:
+    DOTENV_AVAILABLE = False
+
 
 def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     """
@@ -16,12 +22,30 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     Environment variables with the prefix MCP_ are automatically included
     in the configuration (with the prefix removed and name lowercased).
     
+    Also loads from .env files if python-dotenv is available.
+    
     Args:
         config_path: Optional path to a JSON config file
         
     Returns:
         A dictionary containing configuration values
     """
+    # Load environment variables from .env file if available
+    if DOTENV_AVAILABLE:
+        # Look for .env file in current directory and parent directories
+        env_file = Path.cwd() / ".env"
+        if env_file.exists():
+            load_dotenv(env_file)
+        else:
+            # Try to find .env in the project root (where pyproject.toml is)
+            current_dir = Path(__file__).parent
+            while current_dir != current_dir.parent:
+                env_file = current_dir / ".env"
+                if env_file.exists():
+                    load_dotenv(env_file)
+                    break
+                current_dir = current_dir.parent
+    
     # Start with empty config
     config = {
         "server": {
